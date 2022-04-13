@@ -37,10 +37,11 @@ Buzz
     <button>実行</button>
     <label>出力結果</label>
     <textarea id="output"></textarea>
-    <label>期待値</label><input type="text" />
-    <label>実行時引数</label><input type="text" />
-    <label>実行結果</label><input type="text" />
+    <label>期待値</label><input type="text" id="expect_value" />
+    <label>実行時引数</label><input type="text" id="argument" />
+    <label>実行結果</label><input type="text" id="result_value"/>
   </section>
+  <label>デバッグ出力</label>
   <article>
   </article>
 </main>
@@ -68,4 +69,25 @@ textarea {
 input {
   width: 100%;
 }
+
+article {
+  padding: 0.5em;
+  border: 1px solid silver;
+}
 </style>
+
+<script type="module">
+import { zircon } from './zircon.mjs'
+
+const source = document.querySelector('#source')
+const debug = document.querySelector('article')
+const output = document.querySelector('#output')
+const resultValue = document.querySelector('#result_value')
+
+document.querySelector('button').addEventListener('click', e => {
+  const ast = zircon.parse(source.textContent)
+  debug.textContent = JSON.stringify(ast)
+  output.value = ''
+  resultValue.value = zircon.run(ast, out => output.value += out)
+})
+</script>
