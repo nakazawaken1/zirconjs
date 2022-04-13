@@ -1,0 +1,71 @@
+<meta charset="UTF-8" />
+<main>
+  <section>
+    <label>期待出力</label>
+    <textarea id="expect">
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+11
+Fizz
+13
+14
+FizzBuzz
+16
+17
+Fizz
+19
+Buzz
+</textarea>
+    <label>プログラム</label>
+    <textarea id="source">
+1 .. 20 do i {
+  if i % 3 == 0 { 'Fizz' }
+  &
+  if i % 5 == 0 { 'Buzz' }
+  &? i
+  |.echo
+}
+</textarea>
+    <button>実行</button>
+    <label>出力結果</label>
+    <textarea id="output"></textarea>
+    <label>期待値</label><input type="text" />
+    <label>実行時引数</label><input type="text" />
+    <label>実行結果</label><input type="text" />
+  </section>
+  <article>
+  </article>
+</main>
+
+<style>
+section {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr max-content max-content 1fr;
+  gap: 0.5em;
+}
+
+label {
+  text-align: right;
+}
+
+button {
+  grid-row-end: span 2;
+}
+
+textarea {
+  width: 100%;
+  height: 50vh;
+}
+
+input {
+  width: 100%;
+}
+</style>
