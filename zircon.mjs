@@ -144,7 +144,27 @@ export const zircon = {
       return log(Number(n), 'number')
     }
   },
-  run(ast, output) {
-    return JSON.stringify(ast)
+  run(ast) {
+    function log(value) {
+      console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
+      return value
+    }
+    if (ast instanceof Array) {
+      switch (ast[0]) {
+        case '+':
+          return log(ast.length < 3 ? +this.run(ast[1]) : this.run(ast[1]) + this.run(ast[2]))
+        case '-':
+          return log(ast.length < 3 ? -this.run(ast[1]) : this.run(ast[1]) - this.run(ast[2]))
+        case '*':
+          return log(this.run(ast[1]) * this.run(ast[2]))
+        case '/':
+          const right = this.run(ast[2])
+          if (right == 0) throw '0で除算できません'
+          return log(this.run(ast[1]) / right)
+        default:
+          throw ast[0] + 'は定義されていません'
+      }
+    }
+    return ast
   }
 }
