@@ -86,7 +86,7 @@ const output = document.querySelector('#output')
 const resultValue = document.querySelector('#result_value')
 
 document.querySelector('button').addEventListener('click', e => {
-  const ast = zircon.parse(source.textContent)
+  const ast = zircon.parse(source.value)
   debug.textContent = JSON.stringify(ast)
   output.value = ''
   resultValue.value = zircon.run(ast, out => output.value += out)
