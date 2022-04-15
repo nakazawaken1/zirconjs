@@ -25,11 +25,18 @@
   "+": "数値が見つかりません(2文字目)",
   "++3": "数値が見つかりません(2文字目)",
   "1+": "数値が見つかりません(3文字目)",
-  "1 2": 2
+  "1 2": 2,
+  "1 / 2": 0.5,
+  "2 / 2": 1,
+  "3 / 0": "0で除算できません",
+  "1 % 2": 1,
+  "2 % 2": 0,
+  "3 % 0": "0で除算できません"
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
   <section>
+    <nav></nav>
     <ul>
       <li><code>ソース</code><code>期待結果</code><code>実行結果</code><code>判定</code></li>
     </ul>
@@ -49,6 +56,14 @@
     height: 90vh;
   }
 
+  ul {
+    text-align: center;
+  }
+
+  nav, label {
+    text-align: center;
+  }
+
   li {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
@@ -60,14 +75,23 @@
   const run = source => zircon.run(zircon.parse(source))
   const test = document.querySelector("#test")
   const results = document.querySelector("#results")
+  const nav = document.querySelector("nav")
   document.querySelector("button").addEventListener("click", e => {
     results.innerHTML = ""
-    Object.entries(JSON.parse(test.value)).forEach(([source, expect]) => {
-      const result = run(source)
+    nav.innerHTML = ""
+    const corrects = Object.entries(JSON.parse(test.value)).map(([source, expect]) => {
+      let result
+      try {
+        result = run(source)
+      } catch (e) {
+        result = e
+      }
       const correct = result == expect
       const li = document.createElement("li")
-      li.innerHTML = `<code>${source}</code><code>${expect}</code><code>${result}</code><label>${correct ? "●" : "×"}</label>`
+      li.innerHTML = `<code>${source}</code><code>${expect}</code><code>${result}</code><label>${correct ? "✅" : "🆖"}</label>`
       results.appendChild(li)
+      return correct
     })
+    nav.innerHTML = `テスト数：${corrects.length} 通過：${corrects.filter(i => i).length} 失敗：${corrects.filter(i => !i).length}`
   })
 </script>

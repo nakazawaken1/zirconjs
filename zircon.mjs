@@ -2,7 +2,7 @@
 [BNF]
 program: {space} expression {{space} expression} {space}
 expression: term {{space} ('+'|'-') {space} term}
-term: sign {{space} ('*'|'/') {space} sign}
+term: sign {{space} ('*'|'/'|'%') {space} sign}
 sign: {'-'|'+'} {space} factor
 factor: number | '(' {space} expression {space} ')'
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
@@ -17,7 +17,7 @@ export default {
     const SPACE = BLANK.concat(NEWLINE)
     const DIGIT = '0123456789'.split('')
     const ADD = ['+', '-']
-    const MUL = ['*', '/']
+    const MUL = ['*', '/', '%']
     let position = 0
     try {
       return program()
@@ -133,9 +133,11 @@ export default {
         case '*':
           return log(this.run(ast[1]) * this.run(ast[2]))
         case '/':
+        case '%':
           const right = this.run(ast[2])
           if (right == 0) throw '0で除算できません'
-          return log(this.run(ast[1]) / right)
+          const left = this.run(ast[1])
+          return log(ast[0] == '%' ? left % right : left / right)
         default:
           throw ast[0] + 'は定義されていません'
       }
