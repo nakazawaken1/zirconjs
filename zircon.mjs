@@ -4,7 +4,7 @@ program: {space} expression {{space} expression} {space}
 expression: term {{space} ('+'|'-') {space} term}
 term: sign {{space} ('*'|'/'|'%') {space} sign}
 sign: {'-'|'+'} {space} factor
-factor: number | '(' {space} expression {space} ')'
+factor: number | '(' {space} expression {space} ')' | 'p' expression
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
 space: (blank|newline) {space}
 blank: (' ' | '　' | '\t') {blank}
@@ -53,11 +53,11 @@ export default {
 
     function program() {
       skip()
-      let result = expression()
+      const result = ['run', expression()]
       while (true) {
         skip()
         if (peek() == "\0") break
-        result = expression()
+        result.push(expression())
       }
       skip()
       return result
@@ -102,6 +102,10 @@ export default {
     }
     function factor() {
       switch (peek()) {
+        case 'p':
+          next()
+          skip()
+          return log(['p', expression()])
         case '(':
           next()
           skip()
@@ -119,7 +123,8 @@ export default {
       return log(Number(n), 'number')
     }
   },
-  run(ast) {
+  run(ast, env) {
+    const run_ = i => this.run(i, env)
     function log(value) {
       console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
       return value
@@ -127,17 +132,27 @@ export default {
     if (ast instanceof Array) {
       switch (ast[0]) {
         case '+':
-          return log(ast.length < 3 ? +this.run(ast[1]) : this.run(ast[1]) + this.run(ast[2]))
+          return log(ast.length < 3 ? +run_(ast[1]) : run_(ast[1]) + run_(ast[2]))
         case '-':
-          return log(ast.length < 3 ? -this.run(ast[1]) : this.run(ast[1]) - this.run(ast[2]))
+          return log(ast.length < 3 ? -run_(ast[1]) : run_(ast[1]) - run_(ast[2]))
         case '*':
-          return log(this.run(ast[1]) * this.run(ast[2]))
+          return log(run_(ast[1]) * run_(ast[2]))
         case '/':
         case '%':
-          const right = this.run(ast[2])
+          const right = run_(ast[2])
           if (right == 0) throw '0で除算できません'
-          const left = this.run(ast[1])
+          const left = run_(ast[1])
           return log(ast[0] == '%' ? left % right : left / right)
+        case 'p':
+          const value = run_(ast[1])
+          env.out(JSON.stringify(value) + "\n")
+          return log(value)
+        case 'run':
+          let result
+          for (const i of ast.slice(1)) {
+            result = run_(i)
+          }
+          return log(result)
         default:
           throw ast[0] + 'は定義されていません'
       }
