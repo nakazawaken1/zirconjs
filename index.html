@@ -90,7 +90,7 @@ document.querySelector('button').addEventListener('click', e => {
   debug.textContent = JSON.stringify(ast)
   output.value = ''
   try {
-    const result = zircon.run(ast)
+    const result = zircon.run(ast, { out(value) { output.value += value } })
     resultValue.value = JSON.stringify(result)
   } catch (e) {
     output.value += e
