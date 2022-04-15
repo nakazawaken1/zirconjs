@@ -4,7 +4,7 @@ program: {space} expression {{space} expression} {space}
 expression: term {{space} ('+'|'-') {space} term}
 term: sign {{space} ('*'|'/'|'%') {space} sign}
 sign: {'-'|'+'} {space} factor
-factor: number | '(' {space} expression {space} ')' | 'p' expression | symbol | symbol ':' expression
+factor: number | '(' {space} expression {space} ')' | 'p' expression | symbol | symbol {space} ':' {space} expression
 symbol: ^number|mark|space^ {symbol|number}
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
 mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ';' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') {mark}
