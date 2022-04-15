@@ -40,7 +40,7 @@ Buzz
     <textarea id="output"></textarea>
     <label>期待値</label><input type="text" id="expect_value" />
     <label>実行時引数</label><input type="text" id="argument" />
-    <label>実行結果</label><input type="text" id="result_value"/>
+    <label>実行結果</label><input type="text" id="result_value" />
   </section>
   <label>デバッグ出力</label>
   <article>
@@ -86,9 +86,15 @@ const output = document.querySelector('#output')
 const resultValue = document.querySelector('#result_value')
 
 document.querySelector('button').addEventListener('click', e => {
-  const ast = zircon.parse(source.textContent)
+  const ast = zircon.parse(source.value)
   debug.textContent = JSON.stringify(ast)
   output.value = ''
-  resultValue.value = zircon.run(ast, out => output.value += out)
+  try {
+    const result = zircon.run(ast)
+    resultValue.value = JSON.stringify(result)
+  } catch (e) {
+    output.value += e
+    resultValue.value = '(実行時エラー)'
+  }
 })
 </script>
