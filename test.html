@@ -31,7 +31,9 @@
   "3 / 0": "0で除算できません",
   "1 % 2": 1,
   "2 % 2": 0,
-  "3 % 0": "0で除算できません"
+  "3 % 0": "0で除算できません",
+  "p 1": 1,
+  "p 2 p 3": 3
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
@@ -60,7 +62,8 @@
     text-align: center;
   }
 
-  nav, label {
+  nav,
+  label {
     text-align: center;
   }
 
@@ -72,7 +75,7 @@
 
 <script type="module">
   import zircon from './zircon.mjs'
-  const run = source => zircon.run(zircon.parse(source))
+  const run = source => zircon.run(zircon.parse(source), { out() { } })
   const test = document.querySelector("#test")
   const results = document.querySelector("#results")
   const nav = document.querySelector("nav")
