@@ -1,0 +1,73 @@
+<meta charset="UTF-8" />
+<title>test</title>
+<main>
+  <textarea id="test">
+{
+  "0": 0,
+  " 1": 1,
+  "  2": 2,
+  "3 ": 3,
+  "  4  ": 4,
+  "123456789": 123456789,
+  "+1": 1,
+  "- 2": -2,
+  " +3 ": 3,
+  "1+2": 3,
+  "3 + 4": 7,
+  " 5 - 6 ": -1,
+  "1 + 2 + 3": 6,
+  "1 + 2 * 3": 7,
+  "-1 - 2": -3,
+  "-3--4": 1,
+  "1 - - 2": 3,
+  "": "数値が見つかりません(1文字目)",
+  "a": "数値が見つかりません(1文字目)",
+  "+": "数値が見つかりません(2文字目)",
+  "++3": "数値が見つかりません(2文字目)",
+  "1+": "数値が見つかりません(3文字目)",
+  "1 2": 2
+}
+</textarea>
+  <button type="button">テスト<br>実行</button>
+  <section>
+    <ul>
+      <li><code>ソース</code><code>期待結果</code><code>実行結果</code><code>判定</code></li>
+    </ul>
+    <ol id="results">
+    </ol>
+  </section>
+</main>
+
+<style>
+  main {
+    display: grid;
+    grid-template-columns: 1fr max-content 1fr;
+  }
+
+  textarea {
+    width: 100%;
+    height: 90vh;
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+  }
+</style>
+
+<script type="module">
+  import zircon from './zircon.mjs'
+  const run = source => zircon.run(zircon.parse(source))
+  const test = document.querySelector("#test")
+  const results = document.querySelector("#results")
+  document.querySelector("button").addEventListener("click", e => {
+    results.innerHTML = ""
+    Object.entries(JSON.parse(test.value)).forEach(([source, expect]) => {
+      const result = run(source)
+      const correct = result == expect
+      const li = document.createElement("li")
+      li.innerHTML = `<code>${source}</code><code>${expect}</code><code>${result}</code><label>${correct ? "●" : "×"}</label>`
+      results.appendChild(li)
+    })
+  })
+</script>
