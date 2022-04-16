@@ -1,13 +1,21 @@
 /*
-[BNF]
+[BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
 program: {space} expression {{space} expression} {space}
 expression: term {{space} ('+'|'-') {space} term}
 term: sign {{space} ('*'|'/'|'%') {space} sign}
 sign: {'-'|'+'} {space} factor
-factor: number | '(' {space} expression {space} ')' | 'p' expression | symbol | symbol {space} ':' {space} expression
+factor: number
+  | '(' {space} expression {space} ')'
+  | '?' {space} expression
+  | symbol
+  | symbol {space} ':' {space} expression
+  | 'do' {space} argument {space} block [{space} tuple]
+argument: symbol {(space|',') symbol}
+block: '{' program '}'
+tuple: '(' {space} [expression {(space|',') expression}] {space} ')'
 symbol: ^number|mark|space^ {symbol|number}
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
-mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ';' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') {mark}
+mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') {mark}
 space: (blank|newline) {space}
 blank: (' ' | '　' | '\t') {blank}
 newline: ('\n' | ';') {newline}
@@ -17,11 +25,13 @@ export default {
     const BLANK = [' ', '　', "\t"]
     const NEWLINE = ["\n", ';']
     const SPACE = BLANK.concat(NEWLINE)
+    const SPACE_COMMA = SPACE.concat([','])
     const DIGIT = '0123456789'.split('')
-    const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", ',', '@', '`', '[', '{', ';', '+', '*', ']', '}', ',', '<', '.', '>', '/', '?', '_']
+    const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", ',', '@', '`', '[', '{', ':', '+', '*', ']', '}', ',', '<', '.', '>', '/', '?']
     const DIGIT_MARK_SPACE = DIGIT.concat(MARK).concat(SPACE)
     const ADD = ['+', '-']
     const MUL = ['*', '/', '%']
+    const notFound = expect => `${expect}が見つかりません`
     let position = 0
     try {
       return program()
@@ -55,13 +65,25 @@ export default {
       if (ifEmpty && result.length <= 0) throw ifEmpty
       return result.join('')
     }
+    function eat(word, must = false) {
+      const start = position
+      for (const letter of word.split('')) {
+        if (peek() != letter) {
+          if (must) throw notFound(word)
+          position = start
+          return null
+        }
+        next()
+      }
+      return word
+    }
 
     function program() {
       skip()
       const result = ['run', expression()]
       while (true) {
         skip()
-        if (peek() == "\0") break
+        if ("\0}".includes(peek())) break
         result.push(expression())
       }
       skip()
@@ -108,28 +130,70 @@ export default {
     function factor() {
       const letter = peek()
       switch (letter) {
-        case 'p':
+        case '?':
           next()
           skip()
-          return log(['p', expression()])
+          return log(['?', expression()])
         case '(':
           next()
           skip()
           const value = expression()
           skip()
-          if (peek() != ')') throw '「)」が見つかりません'
-          next()
+          eat(')', true)
           return log(value, 'factor')
         default:
+          if (eat('do')) {
+            skip()
+            const a = argument()
+            skip()
+            const b = block()
+            return log(['do', a, b], 'factor')
+          }
           const n = number(null)
           if (n !== '') return log(n, 'factor')
           const name = symbol()
           skip()
-          if (peek() != ':') return log(['get', name], 'factor')
-          next()
-          skip()
-          return log(['set', name, expression()], 'factor')
+          switch (peek()) {
+            case ':':
+              next()
+              skip()
+              return log(['set', name, expression()], 'factor')
+            case '(':
+              const t = tuple()
+              return log(['call', name, t], 'factor')
+            default:
+              return log(['get', name], 'factor')
+          }
       }
+    }
+    function argument() {
+      const symbols = [symbol()]
+      while (true) {
+        skip(SPACE_COMMA)
+        const s = symbol(null)
+        if (!s.length) break
+        symbols.push(s)
+      }
+      return log(symbols, 'argument')
+    }
+    function block() {
+      eat('{', true)
+      const result = program()
+      eat('}', true)
+      return log(result, 'block')
+    }
+    function tuple() {
+      eat('(', true)
+      skip()
+      const result = []
+      while (peek() != ')') {
+        result.push(expression())
+        skip()
+        eat(',')
+        skip()
+      }
+      eat(')', true)
+      return result
     }
     function symbol(ifEmpty = 'シンボルが見つかりません') {
       const s = skip(DIGIT_MARK_SPACE, ifEmpty, true)
@@ -141,12 +205,12 @@ export default {
     }
   },
   run(ast, env) {
-    const r = i => this.run(i, env)
-    function log(value) {
-      console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
-      return value
-    }
     if (ast instanceof Array) {
+      const r = i => this.run(i, env)
+      function log(value) {
+        console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
+        return value
+      }
       switch (ast[0]) {
         case '+':
           return log(ast.length < 3 ? +r(ast[1]) : r(ast[1]) + r(ast[2]))
@@ -160,7 +224,7 @@ export default {
           if (right == 0) throw '0で除算できません'
           const left = r(ast[1])
           return log(ast[0] == '%' ? left % right : left / right)
-        case 'p': {
+        case '?': {
           const value = r(ast[1])
           env.out(JSON.stringify(value) + "\n")
           return log(value)
@@ -182,8 +246,19 @@ export default {
           env[r(ast[1])] = value
           return log(value)
         }
+        case 'call': {
+          const [_, argument, block] = r(['get', ast[1]])
+          const parameter = ast[2]
+          const newEnv = { ...env }
+          const max = Math.max(argument.length, parameter.length)
+          for (let i = 0; i < max; i++) newEnv[argument[i]] = parameter[i]
+          console.log(JSON.stringify(newEnv))
+          return this.run(block, newEnv)
+        }
+        case 'do':
+          return ast
         default:
-          throw ast[0] + 'は定義されていません'
+          throw ast[0] + 'は定義されていません ' + JSON.stringify(ast)
       }
     }
     return ast
