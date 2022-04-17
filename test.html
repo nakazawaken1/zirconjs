@@ -36,7 +36,14 @@
   "? 2 ? 3": 3,
   "a : 1 + 2 ? a + a": 6,
   "pow: do n { n * n } pow(3)": 9,
-  "add_double: do a, b { (a + b) * 2 } add_double(1, 2)": 6
+  "add_double: do a, b { (a + b) * 2 } add_double(1, 2)": 6,
+  "if 1 { ? 1 }": 1,
+  "if 0 { ? 0 }": null,
+  "if true { ? true }": true,
+  "if false { ? false }": null,
+  "if true { ? 1 } ef true { ? 2 } else { ? 3 }": 1,
+  "if false { ? 1 } ef true { ? 2 } else { ? 3 }": 2,
+  "if false { ? 1 } ef false { ? 2 } else { ? 3 }": 3
 }
 </textarea>
   <button type="button">テスト<br>実行</button>

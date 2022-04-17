@@ -10,6 +10,7 @@ factor: number
   | symbol
   | symbol {space} ':' {space} expression
   | 'do' {space} argument {space} block [{space} tuple]
+  | 'if' {space} expression {space} block {{space} 'ef' {space} expression {space} block} [{space} 'else' {space} block]
 argument: symbol {(space|',') symbol}
 block: '{' program '}'
 tuple: '(' {space} [expression {(space|',') expression}] {space} ')'
@@ -149,6 +150,26 @@ export default {
             const b = block()
             return log(['do', a, b], 'factor')
           }
+          if (eat('if')) {
+            const ifs = ['if']
+            skip()
+            ifs.push(expression())
+            skip()
+            ifs.push(block())
+            skip()
+            while (eat('ef')) {
+              skip()
+              ifs.push(expression())
+              skip()
+              ifs.push(block())
+            }
+            skip()
+            if (eat('else')) {
+              skip()
+              ifs.push(block())
+            }
+            return log(ifs, 'factor')
+          }
           const n = number(null)
           if (n !== '') return log(n, 'factor')
           const name = symbol()
@@ -238,6 +259,12 @@ export default {
         }
         case 'get': {
           const name = r(ast[1])
+          if (name == 'true') {
+            return true
+          }
+          if (name == 'false') {
+            return false
+          }
           if (!(name in env)) throw name + 'は定義されていません'
           return log(env[name])
         }
@@ -257,6 +284,18 @@ export default {
         }
         case 'do':
           return ast
+        case 'if': {
+          const condition = r(ast[1])
+          if (condition) return log(r(ast[2]))
+          for (let i = 3; i < ast.length; i++) {
+            const v = ast[i++]
+            if (v[0] && v[0] == 'run') {
+              return log(r(v))
+            }
+            if (r(v)) return log(r(ast[i]))
+          }
+          return log(null)
+        }
         default:
           throw ast[0] + 'は定義されていません ' + JSON.stringify(ast)
       }
