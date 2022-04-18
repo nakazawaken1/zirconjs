@@ -27,11 +27,11 @@ Buzz
 </textarea>
     <label>プログラム</label>
     <textarea id="source">
-1 .. 20 do i {
+1..20.each do i {
   if i % 3 == 0 { 'Fizz' }
   &
   if i % 5 == 0 { 'Buzz' }
-  &? i
+  ??& i
   |.echo
 }
 </textarea>
