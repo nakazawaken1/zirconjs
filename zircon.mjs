@@ -1,25 +1,29 @@
 /*
 [BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
-program: {space} expression {{space} expression} {space}
-expression: term {{space} ('+'|'-') {space} term}
-term: sign {{space} ('*'|'/'|'%') {space} sign}
-sign: {'-'|'+'} {space} factor
+program: {space} not {{space} not} {space}
+not: 'not' {space} infix
+infix: prefix {{space} ('+'|'-'|'*'|'/'|'%'|'<'|'<='|'='|'<>'|'>='|'>'|'and'|'or'|'^'|'??'|'&'|'??&') {space} prefix}
+prefix: {'-'|'+'|'not'} {space} factor
 factor: number
-  | '(' {space} expression {space} ')'
-  | '?' {space} expression
+  | '(' {space} not {space} ')'
+  | '?' {space} not
   | symbol
-  | symbol {space} ':' {space} expression
+  | symbol {space} ':' {space} not
   | 'do' {space} argument {space} block [{space} tuple]
-  | 'if' {space} expression {space} block {{space} 'ef' {space} expression {space} block} [{space} 'else' {space} block]
+  | 'if' {space} not {space} block {{space} 'ef' {space} not {space} block} [{space} 'else' {space} block]
 argument: symbol {(space|',') symbol}
 block: '{' program '}'
-tuple: '(' {space} [expression {(space|',') expression}] {space} ')'
+tuple: '(' {space} [not {(space|',') not}] {space} ')'
 symbol: ^number|mark|space^ {symbol|number}
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
 mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') {mark}
 space: (blank|newline) {space}
 blank: (' ' | '　' | '\t') {blank}
 newline: ('\n' | ';') {newline}
+[infix operator]
+. ?.
+..
+|. |?.
 */
 export default {
   parse(source) {
@@ -30,8 +34,19 @@ export default {
     const DIGIT = '0123456789'.split('')
     const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", ',', '@', '`', '[', '{', ':', '+', '*', ']', '}', ',', '<', '.', '>', '/', '?']
     const DIGIT_MARK_SPACE = DIGIT.concat(MARK).concat(SPACE)
-    const ADD = ['+', '-']
-    const MUL = ['*', '/', '%']
+    const PREFIX = ['+', '-']
+    const RIGHT_ASSOCIATION = ['^']
+    const INFIX = [
+      ['.', '?.'],
+      ['??'],
+      ['^'],
+      ['*', '/', '%'],
+      ['+', '-', '&', '??&'],
+      ['<', '<=', '=', '<>', '>=', '>'],
+      ['and'],
+      ['or'],
+      ['|.', '|?.'],
+    ].flatMap((a, i) => a.map(c => [c, -i + (RIGHT_ASSOCIATION.includes(c) ? 0 : 0.5)])).sort((x, y) => y[0].length - x[0].length)
     const notFound = expect => `${expect}が見つかりません`
     let position = 0
     try {
@@ -66,11 +81,11 @@ export default {
       if (ifEmpty && result.length <= 0) throw ifEmpty
       return result.join('')
     }
-    function eat(word, must = false) {
+    function eat(word, required = false) {
       const start = position
       for (const letter of word.split('')) {
         if (peek() != letter) {
-          if (must) throw notFound(word)
+          if (required) throw notFound(word)
           position = start
           return null
         }
@@ -81,52 +96,58 @@ export default {
 
     function program() {
       skip()
-      const result = ['run', expression()]
+      const result = ['run', not()]
       while (true) {
         skip()
         if ("\0}".includes(peek())) break
-        result.push(expression())
+        result.push(not())
       }
       skip()
       return result
     }
-    function expression() {
-      let result = term()
-      skip()
-      while (true) {
-        const operator = peek()
-        if (!ADD.includes(operator)) break
-        next()
+    function not() {
+      if(eat('not')) {
         skip()
-        result = [operator, result, term()]
+        return log(['not', infix()], 'not')
       }
-      return log(result, 'expression')
+      return log(infix(), 'not')
     }
-    function term() {
-      let result = sign()
-      skip()
+    function infix() {
+      let result = prefix()
       while (true) {
-        const operator = peek()
-        if (!MUL.includes(operator)) break
-        next()
+        const operator = eatOperator()
+        if (operator == null) break
+        result = shift(result, operator)
+      }
+      return log(result, 'infix')
+
+      function eatOperator() {
         skip()
-        result = [operator, result, sign()]
+        return INFIX.find(([operator]) => eat(operator))
       }
-      return log(result, 'term')
+      function shift(left, operatorPriority) {
+        skip()
+        const priority = operatorPriority[1]
+        let right = prefix()
+        while (true) {
+          const backup = position
+          const next = eatOperator()
+          if (next == null || priority > next[1]) {
+            position = backup
+            break
+          }
+          right = shift(right, next)
+        }
+        return [operatorPriority[0], left, right]
+      }
     }
-    function sign() {
-      switch (peek()) {
-        case '+':
-          next()
-          skip()
-          return log(['+', factor()], 'sign')
-        case '-':
-          next()
-          skip()
-          return log(['-', factor()], 'sign')
-        default:
-          return log(factor(), 'sign')
+    function prefix() {
+      const p = PREFIX.find(i => eat(i))
+      if (p) {
+        skip()
+        return log([p, factor()], 'prefix')
       }
+      return log(factor(), 'prefix')
     }
     function factor() {
       const letter = peek()
@@ -134,11 +155,11 @@ export default {
         case '?':
           next()
           skip()
-          return log(['?', expression()])
+          return log(['?', not()])
         case '(':
           next()
           skip()
-          const value = expression()
+          const value = not()
           skip()
           eat(')', true)
           return log(value, 'factor')
@@ -153,13 +174,13 @@ export default {
           if (eat('if')) {
             const ifs = ['if']
             skip()
-            ifs.push(expression())
+            ifs.push(not())
             skip()
             ifs.push(block())
             skip()
             while (eat('ef')) {
               skip()
-              ifs.push(expression())
+              ifs.push(not())
               skip()
               ifs.push(block())
             }
@@ -178,7 +199,7 @@ export default {
             case ':':
               next()
               skip()
-              return log(['set', name, expression()], 'factor')
+              return log(['set', name, not()], 'factor')
             case '(':
               const t = tuple()
               return log(['call', name, t], 'factor')
@@ -208,7 +229,7 @@ export default {
       skip()
       const result = []
       while (peek() != ')') {
-        result.push(expression())
+        result.push(not())
         skip()
         eat(',')
         skip()
@@ -245,11 +266,41 @@ export default {
           if (right == 0) throw '0で除算できません'
           const left = r(ast[1])
           return log(ast[0] == '%' ? left % right : left / right)
+        case '^':
+          return log(Math.pow(r(ast[1]), r(ast[2])))
+        case '<':
+          return log(r(ast[1]) < r(ast[2]))
+        case '>':
+          return log(r(ast[1]) > r(ast[2]))
+        case '<=':
+          return log(r(ast[1]) <= r(ast[2]))
+        case '>=':
+          return log(r(ast[1]) >= r(ast[2]))
+        case '=':
+          return log(r(ast[1]) === r(ast[2]))
+        case '<>':
+          return log(r(ast[1]) !== r(ast[2]))
+        case 'and':
+          return log(r(ast[1]) && r(ast[2]))
+        case 'or':
+          return log(r(ast[1]) || r(ast[2]))
+        case 'not':
+          return log(!r(ast[1]))
         case '?': {
           const value = r(ast[1])
           env.out(JSON.stringify(value) + "\n")
           return log(value)
         }
+        case '??': {
+          const value = r(ast[1])
+          return log(value == null ? r(ast[2]) : value)
+        }
+        case '??&': {
+          const value = r(ast[1])
+          return log(value === null || value == '' ? String(r(ast[2])) : value)
+        }
+        case '&':
+          return log(String(r(ast[1])) + String(r(ast[2])))
         case 'run': {
           let result
           for (const i of ast.slice(1)) {

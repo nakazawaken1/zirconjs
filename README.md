@@ -25,11 +25,12 @@ PC:　Windows, Mac, Linux なんでもOK
    1. BNFを考える
    2. parseを拡張
    3. runを拡張
+   4. 演算子順位の導入
 7. 四則演算に対応
    1. BNFを考える
    2. parseを拡張
    3. runを拡張
-8. 剰余演算に対応
+8. 剰余・冪乗演算に対応
    1. BNFを考える
    2. parseを拡張
    3. runを拡張
@@ -62,7 +63,7 @@ PC:　Windows, Mac, Linux なんでもOK
    2. parseを拡張
    3. runを拡張
    4. 真偽値を追加(true, false)
-   5. 論理式を追加(>, >=, =, <>, <=, <)
+   5. 論理式を追加(>, >=, =, <>, <=, <, and, or, not)
 16. 繰り返しに対応
    1. BNFを考える
    2. parseを拡張
