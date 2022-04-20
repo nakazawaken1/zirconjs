@@ -1,29 +1,26 @@
 /*
 [BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
-program: {space} not {{space} not} {space}
-not: 'not' {space} infix
-infix: prefix {{space} ('+'|'-'|'*'|'/'|'%'|'<'|'<='|'='|'<>'|'>='|'>'|'and'|'or'|'^'|'??'|'&'|'??&') {space} prefix}
-prefix: {'-'|'+'|'not'} {space} factor
+program: [space] expression {[space] expression} [space]
+expression: ('+' | '-' | 'not') [space] factor
+  | factor {[space] operator [space] factor}
 factor: number
-  | '(' {space} not {space} ')'
-  | '?' {space} not
+  | '(' [space] expression [space] ')'
+  | '?' [space] expression
   | symbol
-  | symbol {space} ':' {space} not
-  | 'do' {space} argument {space} block [{space} tuple]
-  | 'if' {space} not {space} block {{space} 'ef' {space} not {space} block} [{space} 'else' {space} block]
+  | symbol [space] ':' [space] expression
+  | 'do' [space] argument [space] block [[space] tuple]
+  | 'if' [space] expression [space] block {[space] 'ef' [space] expression [space] block} [[space] 'else' [space] block]
+
+operator: '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '=' | '<>' | '>=' | '>' | 'and' | 'or' | '^' | '??' | '&' | '??&' | '.' | '?.' | '..' | '|.' | '|?.'
 argument: symbol {(space|',') symbol}
 block: '{' program '}'
-tuple: '(' {space} [not {(space|',') not}] {space} ')'
-symbol: ^number|mark|space^ {symbol|number}
-number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') {number}
-mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') {mark}
-space: (blank|newline) {space}
-blank: (' ' | '　' | '\t') {blank}
-newline: ('\n' | ';') {newline}
-[infix operator]
-. ?.
-..
-|. |?.
+tuple: '(' [space] [expression] {(space|',') expression} [space] ')'
+symbol: ^number|mark|space^ [symbol|number]
+number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [number]
+mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') [mark]
+space: (blank|newline) [space]
+blank: (' ' | '　' | '\t') [blank]
+newline: ('\n' | ';') [newline]
 */
 export default {
   parse(source) {
@@ -34,19 +31,20 @@ export default {
     const DIGIT = '0123456789'.split('')
     const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", ',', '@', '`', '[', '{', ':', '+', '*', ']', '}', ',', '<', '.', '>', '/', '?']
     const DIGIT_MARK_SPACE = DIGIT.concat(MARK).concat(SPACE)
-    const PREFIX = ['+', '-']
-    const RIGHT_ASSOCIATION = ['^']
-    const INFIX = [
+    const OPERATOR = [/*\b 後置, \f 前置, \n 無結合, \r 右結合 */
       ['.', '?.'],
       ['??'],
-      ['^'],
+      ['\f+', '\f-'],
+      ['\r^'],
       ['*', '/', '%'],
       ['+', '-', '&', '??&'],
-      ['<', '<=', '=', '<>', '>=', '>'],
+      ['\n<', '\n<=', '\n=', '\n<>', '\n>=', '\n>'],
+      ['\fnot'],
       ['and'],
       ['or'],
       ['|.', '|?.'],
-    ].flatMap((a, i) => a.map(c => [c, -i + (RIGHT_ASSOCIATION.includes(c) ? 0 : 0.5)])).sort((x, y) => y[0].length - x[0].length)
+    ].flatMap((a, i) => a.map(c => [c.replace(/[\r\n\f\b]/, ''), -i, c[0]])).sort((x, y) => y[0].length - x[0].length)
+    console.log(OPERATOR)
     const notFound = expect => `${expect}が見つかりません`
     let position = 0
     try {
@@ -69,11 +67,11 @@ export default {
     function next() {
       position++
     }
-    function skip(letters = SPACE, ifEmpty = null, not = false) {
+    function skip(letters = SPACE, ifEmpty = null, expression = false) {
       const result = []
       while (true) {
         const letter = peek()
-        if (not) { if (letter == '\0' || letters.includes(letter)) break }
+        if (expression) { if (letter == '\0' || letters.includes(letter)) break }
         else { if (!letters.includes(letter)) break }
         result.push(letter)
         next()
@@ -96,58 +94,66 @@ export default {
 
     function program() {
       skip()
-      const result = ['run', not()]
+      const result = ['run', expression()]
       while (true) {
         skip()
         if ("\0}".includes(peek())) break
-        result.push(not())
+        result.push(expression())
       }
       skip()
       return result
     }
-    function not() {
-      if(eat('not')) {
-        skip()
-        return log(['not', infix()], 'not')
-      }
-      return log(infix(), 'not')
-    }
-    function infix() {
-      let result = prefix()
+    function expression() {
+      const stack = []
+      let right
       while (true) {
-        const operator = eatOperator()
-        if (operator == null) break
-        result = shift(result, operator)
-      }
-      return log(result, 'infix')
-
-      function eatOperator() {
-        skip()
-        return INFIX.find(([operator]) => eat(operator))
-      }
-      function shift(left, operatorPriority) {
-        skip()
-        const priority = operatorPriority[1]
-        let right = prefix()
-        while (true) {
-          const backup = position
-          const next = eatOperator()
-          if (next == null || priority > next[1]) {
-            position = backup
-            break
-          }
-          right = shift(right, next)
+        const unary = eatOperator(i => i[2] == '\f')
+        if (unary != null) {
+          const top = stack[stack.length - 1]
+          if(stack.length && top[1] > unary[1]) throw unary[0] + 'の場所が不正です'
+          stack.push(unary)
+          continue
         }
-        return [operatorPriority[0], left, right]
-      }
-    }
-    function prefix() {
-      const p = PREFIX.find(i => eat(i))
-      if (p) {
         skip()
-        return log([p, factor()], 'prefix')
+        right = factor()
+        const binary = eatOperator(i => !'\f\b'.includes(i[2]))
+        if(binary == null) break
+        while(stack.length) {
+          const top = stack[stack.length - 1]
+          const compare = top[1] - binary[1]
+          if(compare < 0) break
+          const type = top[2]
+          if(type == '\f') {
+            stack.pop()
+            right = log([top[0], right], 'expression')
+          } else if(type == '\n' && binary[2] == '\n') {
+            throw binary[0] + 'は複数連結できません'
+          } else if(compare == 0 && type != top[0][0]) {
+            break
+          } else {
+            stack.pop()
+            right = log([top[0], stack.pop(), right], 'expression')
+          }
+        }
+        stack.push(right)
+        stack.push(binary)
       }
-      return log(factor(), 'prefix')
+      while(stack.length) {
+        const top = stack.pop()
+        if(top[2] == '\f') right = log([top[0], right], 'expression')
+        else right = log([top[0], stack.pop(), right], 'expression')
+      }
+      return log(right, 'expression')
+
+      function eatOperator(filter = i => true) {
+        skip()
+        const backup = position
+        return OPERATOR.find(i => {
+          if(eat(i[0]) && filter(i)) return true
+          position = backup
+          return false
+        })
+      }
     }
     function factor() {
       const letter = peek()
@@ -155,11 +161,11 @@ export default {
         case '?':
           next()
           skip()
-          return log(['?', not()])
+          return log(['?', expression()])
         case '(':
           next()
           skip()
-          const value = not()
+          const value = expression()
           skip()
           eat(')', true)
           return log(value, 'factor')
@@ -174,13 +180,13 @@ export default {
           if (eat('if')) {
             const ifs = ['if']
             skip()
-            ifs.push(not())
+            ifs.push(expression())
             skip()
             ifs.push(block())
             skip()
             while (eat('ef')) {
               skip()
-              ifs.push(not())
+              ifs.push(expression())
               skip()
               ifs.push(block())
             }
@@ -199,7 +205,7 @@ export default {
             case ':':
               next()
               skip()
-              return log(['set', name, not()], 'factor')
+              return log(['set', name, expression()], 'factor')
             case '(':
               const t = tuple()
               return log(['call', name, t], 'factor')
@@ -229,7 +235,7 @@ export default {
       skip()
       const result = []
       while (peek() != ')') {
-        result.push(not())
+        result.push(expression())
         skip()
         eat(',')
         skip()
@@ -329,7 +335,7 @@ export default {
           const parameter = ast[2]
           const newEnv = { ...env }
           const max = Math.max(argument.length, parameter.length)
-          for (let i = 0; i < max; i++) newEnv[argument[i]] = parameter[i]
+          for (let i = 0; i < max; i++) newEnv[argument[i]] = r(parameter[i])
           console.log(JSON.stringify(newEnv))
           return this.run(block, newEnv)
         }
