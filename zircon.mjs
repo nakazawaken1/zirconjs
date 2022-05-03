@@ -115,10 +115,15 @@ export default {
       const stack = []
       let right
       while (true) {
+        const backup = position
         const unary = eatOperator(i => i[2] == '\f')
         if (unary != null) {
           const top = stack[stack.length - 1]
-          if (stack.length && top[1] > unary[1]) throw unary[0] + 'の場所が不正です'
+          if (stack.length && top[1] > unary[1]) {
+            position = backup
+            right = expression(env)
+            break
+          }
           stack.push(unary)
           continue
         }
