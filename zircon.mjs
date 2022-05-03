@@ -231,7 +231,7 @@ export default {
               return log(['set', name, expression(env)], 'factor')
             case '(':
               const argument = tuple(env).slice(1)
-              return log(['call', name, argument], 'factor')
+              return log(['call', ['get', name], argument], 'factor')
             default:
               return log(['get', name], 'factor')
           }
@@ -275,7 +275,7 @@ export default {
       return log(n.length ? Number(n) : n, 'number')
     }
   },
-  run(ast, env) {
+  run(ast, env = {}) {
     if (ast instanceof Array) {
       const r = i => this.run(i, env)
       switch (ast[0]) {
@@ -313,8 +313,13 @@ export default {
           return log(!r(ast[1]))
         case '?': {
           const value = r(ast[1])
-          env.out(JSON.stringify(value[0] == 'tuple' ? value.slice(1) : value) + "\n")
-          return log(value)
+          for (var e = env; e != null; e = e.$outside$) {
+            if ('out' in e) {
+              e.out((value[0] == 'tuple' ? JSON.stringify(value.slice(1)) : value) + "\n")
+              return log(value)
+            }
+          }
+          throw '出力先(out)が定義されていません'
         }
         case '??': {
           const value = r(ast[1])
@@ -325,11 +330,21 @@ export default {
           return log(value === null || value == '' ? String(r(ast[2])) : value)
         }
         case '&':
-          return log(String(r(ast[1])) + String(r(ast[2])))
+          return log((r(ast[1]) ?? '') + (r(ast[2]) ?? ''))
+        case '..':
+          return log(['range', r(ast[1]), r(ast[2])])
         case 'run': {
           let result
-          for (const i of ast.slice(2)) {
-            result = r(i)
+          for (var i = 2; i < ast.length; i++) {
+            result = r(ast[i])
+            if (i + 1 < ast.length && ast[i + 1][0] == 'do') {
+              if (result[0] == 'range') {
+                for (var j = result[1], end = result[2]; j <= end; j++) {
+                  result = r(['call', ast[i + 1], [j]])
+                }
+                i++
+              }
+            }
           }
           return log(result)
         }
@@ -353,7 +368,7 @@ export default {
           return log(value)
         }
         case 'call': {
-          const [_, argument, block] = r(['get', ast[1]])
+          const [_, argument, block] = r(ast[1])
           const parameter = ast[2]
           const local = block[1]
           const max = Math.max(argument.length, parameter.length)
@@ -378,7 +393,8 @@ export default {
           }
           return log(null)
         }
-        case '.': {
+        case '.':
+        case '?.': {
           const instance = r(ast[1])
           const message = r(ast[2])
           if (instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)]))

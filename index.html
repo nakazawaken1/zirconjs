@@ -27,12 +27,10 @@ Buzz
 </textarea>
     <label>プログラム</label>
     <textarea id="source">
-1..20.each do i {
-  if i % 3 = 0 { 'Fizz' }
-  &
-  if i % 5 = 0 { 'Buzz' }
+1..20 do i {
+  ? if i % 3 = 0 { 'Fizz' }
+  & if i % 5 = 0 { 'Buzz' }
   ??& i
-  |.echo
 }
 </textarea>
     <button>実行</button>
@@ -87,10 +85,12 @@ const resultValue = document.querySelector('#result_value')
 
 document.querySelector('button').addEventListener('click', e => {
   const ast = zircon.parse(source.value)
+  ast[1].out = value => output.value += value
   debug.textContent = JSON.stringify(ast)
+  console.trace(ast)
   output.value = ''
   try {
-    const result = zircon.run(ast, { out(value) { output.value += value } })
+    const result = zircon.run(ast)
     resultValue.value = JSON.stringify(result)
   } catch (e) {
     output.value += e
