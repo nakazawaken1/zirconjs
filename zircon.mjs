@@ -4,17 +4,17 @@ program: [space] expression {[space] expression} [space]
 expression: ('+' | '-' | 'not') [space] factor
   | factor {[space] operator [space] factor}
 factor: number
-  | '(' [space] expression [space] ')'
+  | tuple
   | '?' [space] expression
   | symbol
+  | symbol [space] tuple
   | symbol [space] ':' [space] expression
-  | 'do' [space] argument [space] block [[space] tuple]
+  | 'do' [space] argument [space] block
   | 'if' [space] expression [space] block {[space] 'ef' [space] expression [space] block} [[space] 'else' [space] block]
-
 operator: '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '=' | '<>' | '>=' | '>' | 'and' | 'or' | '^' | '??' | '&' | '??&' | '.' | '?.' | '..' | '|.' | '|?.'
-argument: symbol {(space|',') symbol}
+argument: symbol {(space|',') [space] symbol}
 block: '{' program '}'
-tuple: '(' [space] [expression] {(space|',') expression} [space] ')'
+tuple: '(' [space] [expression] {(space|',') [space] expression} [space] ')'
 symbol: ^number|mark|space^ [symbol|number]
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [number]
 mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') [mark]
@@ -39,6 +39,7 @@ export default {
       ['\r^'],
       ['*', '/', '%'],
       ['+', '-', '&', '??&'],
+      ['..'],
       ['\n<', '\n<=', '\n=', '\n<>', '\n>=', '\n>'],
       ['\fnot'],
       ['and'],
@@ -51,7 +52,12 @@ export default {
     try {
       return program({})
     } catch (e) {
-      return e + '(' + (position + 1) + '文字目)'
+      let center = position;
+      if(source.length < 5) {
+        center += 5
+        source = '\\\\\\\\\\' + source + '\\\\\\\\\\'
+      }
+      return e + '(' + (position + 1) + '文字目 ' + source.slice(center - 2, center + 3) + ')'
     }
 
     function log(value, name) {
@@ -162,14 +168,10 @@ export default {
         case '?':
           next()
           skip()
-          return log(['?', expression(env)])
+          return log(['?', expression(env)], 'factor')
         case '(':
-          next()
-          skip()
-          const value = expression(env)
-          skip()
-          eat(')', true)
-          return log(value, 'factor')
+          const value = tuple(env)
+          return log(value.length == 2 ? value[1] : value, 'factor')
         default:
           if (eat('do')) {
             skip()
@@ -208,8 +210,8 @@ export default {
               skip()
               return log(['set', name, expression(env)], 'factor')
             case '(':
-              const t = tuple(env)
-              return log(['call', name, t], 'factor')
+              const argument = tuple(env).slice(1)
+              return log(['call', name, argument], 'factor')
             default:
               return log(['get', name], 'factor')
           }
@@ -227,14 +229,14 @@ export default {
     }
     function block(env) {
       eat('{', true)
-      const result = program({ $parent$: env })
+      const result = program({ $outside$: env })
       eat('}', true)
       return log(result, 'block')
     }
     function tuple(env) {
       eat('(', true)
       skip()
-      const result = []
+      const result = ['tuple']
       while (peek() != ')') {
         result.push(expression(env))
         skip()
@@ -256,10 +258,6 @@ export default {
   run(ast, env) {
     if (ast instanceof Array) {
       const r = i => this.run(i, env)
-      function log(value) {
-        console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
-        return value
-      }
       switch (ast[0]) {
         case '+':
           return log(ast.length < 3 ? +r(ast[1]) : r(ast[1]) + r(ast[2]))
@@ -323,7 +321,7 @@ export default {
           if (name == 'false') {
             return false
           }
-          for (var e = env; e != null; e = e.$parent$) {
+          for (var e = env; e != null; e = e.$outside$) {
             if (name in e) return log(e[name])
           }
           console.log(JSON.stringify(env))
@@ -345,6 +343,7 @@ export default {
           }
           return this.run(block, newEnv)
         }
+        case 'tuple':
         case 'do':
           return ast
         case 'if': {
@@ -359,10 +358,27 @@ export default {
           }
           return log(null)
         }
+        case '.': {
+          const instance = r(ast[1])
+          const message = r(ast[2])
+          if (instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)]))
+          /*fallthrough*/
+        }
         default:
           throw ast[0] + 'は定義されていません ' + JSON.stringify(ast)
       }
     }
     return ast
+
+    function log(value) {
+      console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
+      return value
+    }
+    function then(value, action) {
+      return action(value)
+    }
+    function isNumber(value) {
+      return typeof value == 'number' && isFinite(value)
+    }
   }
 }
