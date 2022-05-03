@@ -25,7 +25,7 @@ PC:　Windows, Mac, Linux なんでもOK
    1. BNFを考える
    2. parseを拡張
    3. runを拡張
-   4. 演算子順位の導入
+   4. 演算子順位法の導入 https://tociyuki.hatenablog.jp/entry/20130318/1363582938
 7. 四則演算に対応
    1. BNFを考える
    2. parseを拡張
@@ -58,6 +58,8 @@ PC:　Windows, Mac, Linux なんでもOK
    1. BNFを考える
    2. parseを拡張
    3. runを拡張：スコープの実現
+   4. 再帰呼び出しのテスト
+   5. レキシカルスコープ対応
 15. 条件分岐に対応
    1. BNFを考える
    2. parseを拡張
@@ -72,3 +74,11 @@ PC:　Windows, Mac, Linux なんでもOK
    1. BNFを考える
    2. parseを拡張
    3. runを拡張
+
+TODO
+ - <script>タグでの実行対応
+ - node での実行対応
+ - javascriptへのトランスパイル
+ - javaへのトランスパイル
+ - import, export
+ - APIサーバ実装

@@ -23,7 +23,7 @@
   "": "シンボルが見つかりません(1文字目)",
   "a": "aは定義されていません",
   "+": "シンボルが見つかりません(2文字目)",
-  "++3": "シンボルが見つかりません(2文字目)",
+  "++3": 3,
   "1+": "シンボルが見つかりません(3文字目)",
   "1 2": 2,
   "1 / 2": 0.5,
@@ -36,6 +36,7 @@
   "? 2 ? 3": 3,
   "a : 1 + 2 ? a + a": 6,
   "pow: do n { n * n } pow(3)": 9,
+  "4 ^ 3 ^ 2": 262144,
   "add_double: do a, b { (a + b) * 2 } add_double(1, 2)": 6,
   "if 1 { ? 1 }": 1,
   "if 0 { ? 0 }": null,
@@ -65,7 +66,8 @@
   "if 1 < 1 or 3 < 4 { true } else { false }": true,
   "if 1 < 1 or 3 < 3 { true } else { false }": false,
   "if not 1 < 2 { true } else { false }": false,
-  "if not 1 < 1 { true } else { false }": true
+  "if not 1 < 1 { true } else { false }": true,
+  "addN: do n { do m { n + m } } add3: addN(3) add3(1)": 4
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
