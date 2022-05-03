@@ -76,7 +76,11 @@
   "'abc'": "abc",
   "'ab''c'": "ab'c",
   "''''": "'",
-  "''''''": "''"
+  "''''''": "''",
+  "'abc' & 123": "abc123",
+  "123 & 456": "123456",
+  "'' ??& 'empty'": "empty",
+  "'abc' ??& 'empty'": "abc"
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
