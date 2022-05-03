@@ -16,7 +16,7 @@ operator: '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '=' | '<>' | '>=' | '>' | '
 argument: symbol {(space|',') [space] symbol}
 block: '{' program '}'
 tuple: '(' [space] [expression] {(space|',') [space] expression} [space] ')'
-symbol: ^number|mark|space^ [symbol|number]
+symbol: 'true' | 'false' | 'null' | (^number|mark|space^ [symbol|number])
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [number]
 mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') [mark]
 space: (blank|newline) [space]
@@ -330,7 +330,7 @@ export default {
           return log(value === null || value == '' ? String(r(ast[2])) : value)
         }
         case '&':
-          return log((r(ast[1]) ?? '') + (r(ast[2]) ?? ''))
+          return log(`${r(ast[1]) ?? ''}${r(ast[2]) ?? ''}`)
         case '..':
           return log(['range', r(ast[1]), r(ast[2])])
         case 'run': {
@@ -355,6 +355,9 @@ export default {
           }
           if (name == 'false') {
             return false
+          }
+          if (name == 'null') {
+            return null
           }
           for (var e = env; e != null; e = e.$outside$) {
             if (name in e) return log(e[name])
@@ -397,7 +400,7 @@ export default {
         case '?.': {
           const instance = r(ast[1])
           const message = r(ast[2])
-          if (instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)]))
+          if (instance && instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)] ?? null))
           /*fallthrough*/
         }
         default:

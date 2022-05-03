@@ -82,7 +82,8 @@
   "'abc' & 123": "abc123",
   "123 & 456": "123456",
   "'' ??& 'empty'": "empty",
-  "'abc' ??& 'empty'": "abc"
+  "'abc' ??& 'empty'": "abc",
+  "null": null
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
@@ -149,7 +150,7 @@
       } catch (e) {
         result = e
       }
-      const correct = result == expect
+      const correct = result === expect
       const li = document.createElement("li")
       li.innerHTML = `<code>${source}</code><code>${expect}</code><code>${result}</code><label>${correct ? "✅" : "🆖"}</label>`
       results.appendChild(li)
