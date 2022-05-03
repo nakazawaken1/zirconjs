@@ -72,7 +72,15 @@
   "(1, 2, 3).1": 2,
   "(1, 2, 3).2": 3,
   "(1, 2, 3).4": null,
-  "(1, 2, 3).(-1)": 3
+  "(1, 2, 3).(-1)": 3,
+  "'abc'": "abc",
+  "'ab''c'": "ab'c",
+  "''''": "'",
+  "''''''": "''",
+  "'abc' & 123": "abc123",
+  "123 & 456": "123456",
+  "'' ??& 'empty'": "empty",
+  "'abc' ??& 'empty'": "abc"
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
@@ -90,6 +98,7 @@
   main {
     display: grid;
     grid-template-columns: 1fr max-content 1fr;
+    align-items: flex-start;
   }
 
   textarea {

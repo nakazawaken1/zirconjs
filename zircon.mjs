@@ -6,6 +6,7 @@ expression: ('+' | '-' | 'not') [space] factor
 factor: number
   | tuple
   | '?' [space] expression
+  | '\'' {^'\''^|'\'\''} '\''
   | symbol
   | symbol [space] tuple
   | symbol [space] ':' [space] expression
@@ -53,7 +54,7 @@ export default {
       return program({})
     } catch (e) {
       let center = position;
-      if(source.length < 5) {
+      if (source.length < 5) {
         center += 5
         source = '\\\\\\\\\\' + source + '\\\\\\\\\\'
       }
@@ -64,11 +65,11 @@ export default {
       console.log(position + ': ' + (name ? name + '=' : '') + JSON.stringify(value))
       return value
     }
-    function peek() {
-      if (position >= source.length) {
+    function peek(offset = 0) {
+      if (position + offset >= source.length) {
         return "\0"
       }
-      const letter = source.charAt(position)
+      const letter = source.charAt(position + offset)
       return letter
     }
     function next() {
@@ -163,8 +164,7 @@ export default {
       }
     }
     function factor(env) {
-      const letter = peek()
-      switch (letter) {
+      switch (peek()) {
         case '?':
           next()
           skip()
@@ -172,6 +172,21 @@ export default {
         case '(':
           const value = tuple(env)
           return log(value.length == 2 ? value[1] : value, 'factor')
+        case '\'': {
+          next()
+          const letters = []
+          while (true) {
+            const letter = peek()
+            if (letter == '\'') {
+              if (peek(1) != '\'') break
+              next()
+            }
+            next()
+            letters.push(letter)
+          }
+          eat('\'', true)
+          return log(letters.join(''), 'factor')
+        }
         default:
           if (eat('do')) {
             skip()
@@ -293,7 +308,7 @@ export default {
           return log(!r(ast[1]))
         case '?': {
           const value = r(ast[1])
-          env.out(JSON.stringify(value) + "\n")
+          env.out(JSON.stringify(value[0] == 'tuple' ? value.slice(1) : value) + "\n")
           return log(value)
         }
         case '??': {
@@ -335,13 +350,13 @@ export default {
         case 'call': {
           const [_, argument, block] = r(['get', ast[1]])
           const parameter = ast[2]
-          const newEnv = block[1]
+          const local = block[1]
           const max = Math.max(argument.length, parameter.length)
           for (let i = 0; i < max; i++) {
             console.log(argument[i] + ' <= ' + r(parameter[i]))
-            newEnv[argument[i]] = r(parameter[i])
+            local[argument[i]] = r(parameter[i])
           }
-          return this.run(block, newEnv)
+          return this.run(block, local)
         }
         case 'tuple':
         case 'do':
