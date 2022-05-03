@@ -28,9 +28,9 @@ Buzz
     <label>プログラム</label>
     <textarea id="source">
 1..20.each do i {
-  if i % 3 == 0 { 'Fizz' }
+  if i % 3 = 0 { 'Fizz' }
   &
-  if i % 5 == 0 { 'Buzz' }
+  if i % 5 = 0 { 'Buzz' }
   ??& i
   |.echo
 }
