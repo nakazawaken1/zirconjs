@@ -397,8 +397,12 @@ export default {
           return log(null)
         }
         case '.':
-        case '?.': {
+        case '?.':
+        case '|.':
+        case '|?.': {
           const instance = r(ast[1])
+          if (instance == null && ast[0].endsWith('?.')) return log(null)
+          if (ast[2][0] == 'get') return log(r(['call', ast[2], instance]))
           const message = r(ast[2])
           if (instance && instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)] ?? null))
           /*fallthrough*/

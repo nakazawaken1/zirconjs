@@ -85,6 +85,10 @@ const resultValue = document.querySelector('#result_value')
 
 document.querySelector('button').addEventListener('click', e => {
   const ast = zircon.parse(source.value)
+  if (ast[0] != 'run') {
+    output.value = ast
+    return
+  }
   ast[1].out = value => output.value += value
   debug.textContent = JSON.stringify(ast)
   console.trace(ast)
