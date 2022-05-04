@@ -1,7 +1,7 @@
 /*
 [BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
 program: [space] expression {[space] expression} [space]
-expression: ('+' | '-' | 'not') [space] factor
+expression: prefix [space] factor
   | factor {[space] operator [space] factor}
 factor: number
   | tuple
@@ -10,8 +10,9 @@ factor: number
   | symbol
   | symbol [space] tuple
   | symbol [space] ':' [space] expression
-  | 'do' [space] argument [space] block
+  | 'do' [space] [argument] [space] block
   | 'if' [space] expression [space] block {[space] 'ef' [space] expression [space] block} [[space] 'else' [space] block]
+prefix: '+' | '-' | 'not'
 operator: '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '=' | '<>' | '>=' | '>' | 'and' | 'or' | '^' | '??' | '&' | '??&' | '.' | '?.' | '..' | '|.' | '|?.'
 argument: symbol {(space|',') [space] symbol}
 block: '{' program '}'
@@ -195,7 +196,7 @@ export default {
         default:
           if (eat('do')) {
             skip()
-            const a = argument(env)
+            const a = peek() != '{' ? argument(env) : []
             skip()
             const b = block(env)
             return log(['do', a, b], 'factor')
