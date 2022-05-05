@@ -1,6 +1,6 @@
 /*
 [BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
-program: [space] expression {[space] expression} [space]
+program: [space] expression {space expression} [space]
 expression: prefix [space] factor
   | factor {[space] operator [space] factor}
 factor: number
@@ -19,19 +19,21 @@ block: '{' program '}'
 tuple: '(' [space] [expression] {(space|',') [space] expression} [space] ')'
 symbol: 'true' | 'false' | 'null' | (^number|mark|space^ [symbol|number])
 number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [number]
-mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ':' | '+' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?' | '_') [mark]
+mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ';' | '+' | ':' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?') [mark]
 space: (blank|newline) [space]
 blank: (' ' | '　' | '\t') [blank]
 newline: ('\n' | ';') [newline]
 */
+const toJSON = (a, space = '  ') => JSON.stringify(a, null, space)
 export default {
+  toJSON,
   parse(source) {
     const BLANK = [' ', '　', "\t"]
     const NEWLINE = ["\n", ';']
     const SPACE = BLANK.concat(NEWLINE)
     const SPACE_COMMA = SPACE.concat([','])
     const DIGIT = '0123456789'.split('')
-    const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", ',', '@', '`', '[', '{', ':', '+', '*', ']', '}', ',', '<', '.', '>', '/', '?']
+    const MARK = ['!', '"', '#', '$', '%', '&', "\'", '(', ')', '-', '=', '^', '~', "\\", '|', '@', '`', '[', '{', ';', '+', ':', '*', ']', '}', ',', '<', '.', '>', '/', '?']
     const MARK_SPACE = MARK.concat(SPACE)
     const DIGIT_MARK_SPACE = MARK_SPACE.concat(DIGIT)
     const OPERATOR = [/*\b 後置, \f 前置, \n 無結合, \r 右結合 */
@@ -39,7 +41,7 @@ export default {
       ['??'],
       ['\f+', '\f-'],
       ['\r^'],
-      ['*', '/', '%'],
+      ['*', '/', '%', '/%'],
       ['+', '-', '&', '??&'],
       ['..'],
       ['\n<', '\n<=', '\n=', '\n<>', '\n>=', '\n>'],
@@ -63,7 +65,7 @@ export default {
     }
 
     function log(value, name) {
-      console.log(position + ': ' + (name ? name + '=' : '') + JSON.stringify(value))
+      console.log(position + ': ' + (name ? name + '=' : '') + toJSON(value))
       return value
     }
     function peek(offset = 0) {
@@ -250,7 +252,7 @@ export default {
     }
     function block(env) {
       eat('{', true)
-      const result = program({ $outside$: env })
+      const result = program({ $: env, toJSON() { return '<' + Object.keys(this).filter(i => !['toJSON', '$'].includes(i)).join(',') + '>' } })
       eat('}', true)
       return log(result, 'block')
     }
@@ -277,8 +279,13 @@ export default {
     }
   },
   run(ast, env = {}) {
+    ast[1].$ = env
+    const result = this.eval(ast, ast[1])
+    return result && result[0] == 'tuple' ? result.slice(1) : result
+  },
+  eval(ast, env) {
     if (ast instanceof Array) {
-      const r = i => this.run(i, env)
+      const r = i => this.eval(i, env)
       switch (ast[0]) {
         case '+':
           return log(ast.length < 3 ? +r(ast[1]) : r(ast[1]) + r(ast[2]))
@@ -288,10 +295,15 @@ export default {
           return log(r(ast[1]) * r(ast[2]))
         case '/':
         case '%':
+        case '/%':
           const right = r(ast[2])
           if (right == 0) throw '0で除算できません'
           const left = r(ast[1])
-          return log(ast[0] == '%' ? left % right : left / right)
+          switch (ast[0]) {
+            case '/': return log(left / right)
+            case '%': return log(left % right)
+            case '/%': return log(Math.floor(left / right))
+          }
         case '^':
           return log(Math.pow(r(ast[1]), r(ast[2])))
         case '<':
@@ -314,9 +326,9 @@ export default {
           return log(!r(ast[1]))
         case '?': {
           const value = r(ast[1])
-          for (var e = env; e != null; e = e.$outside$) {
+          for (var e = env; e != null; e = e.$) {
             if ('out' in e) {
-              e.out((value[0] == 'tuple' ? JSON.stringify(value.slice(1)) : value) + "\n")
+              e.out((value[0] == 'tuple' ? toJSON(value.slice(1), null) : value) + "\n")
               return log(value)
             }
           }
@@ -328,7 +340,7 @@ export default {
         }
         case '??&': {
           const value = r(ast[1])
-          return log(value === null || value == '' ? String(r(ast[2])) : value)
+          return log(String(value === null || value === '' ? r(ast[2]) : value))
         }
         case '&':
           return log(`${r(ast[1]) ?? ''}${r(ast[2]) ?? ''}`)
@@ -360,10 +372,9 @@ export default {
           if (name == 'null') {
             return null
           }
-          for (var e = env; e != null; e = e.$outside$) {
+          for (var e = env; e != null; e = e.$) {
             if (name in e) return log(e[name])
           }
-          console.log(JSON.stringify(env))
           throw name + 'は定義されていません'
         }
         case 'set': {
@@ -380,9 +391,10 @@ export default {
             console.log(argument[i] + ' <= ' + r(parameter[i]))
             local[argument[i]] = r(parameter[i])
           }
-          return this.run(block, local)
+          return this.eval(block, { ...local })
         }
         case 'tuple':
+          return log(['tuple', ...ast.slice(1).map(i => r(i))])
         case 'do':
           return ast
         case 'if': {
@@ -409,13 +421,13 @@ export default {
           /*fallthrough*/
         }
         default:
-          throw ast[0] + 'は定義されていません ' + JSON.stringify(ast)
+          throw ast[0] + 'は定義されていません ' + toJSON(ast)
       }
     }
     return ast
 
     function log(value) {
-      console.log(JSON.stringify(ast) + ' = ' + JSON.stringify(value))
+      console.log(toJSON(ast) + ' = ' + toJSON(value))
       return value
     }
     function then(value, action) {

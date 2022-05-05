@@ -33,6 +33,9 @@
   "1 % 2": 1,
   "2 % 2": 0,
   "3 % 0": "0で除算できません",
+  "1 /% 2": 0,
+  "2 /% 2": 1,
+  "3 /% 0": "0で除算できません",
   "? 1": 1,
   "? 2 ? 3": 3,
   "a : 1 + 2 ? a + a": 6,
@@ -82,10 +85,16 @@
   "'abc' & 123": "abc123",
   "123 & 456": "123456",
   "'' ??& 'empty'": "empty",
+  "null ??& 'empty'": "empty",
+  "false ??& 'empty'": "false",
   "'abc' ??& 'empty'": "abc",
   "null": null,
+  "true": true,
+  "false": false,
   "null.method": "methodは定義されていません",
-  "null?.method": null
+  "null?.method": null,
+  "a: do { 1 } b: a b()": 1,
+  "fib: do n { if n > 2 { fib(n - 1) + fib(n - 2) } else { 1 } } (fib(1) fib(2) fib(3) fib(4) fib(5) fib(6))": [1, 1, 2, 3, 5, 8]
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
@@ -147,12 +156,12 @@
       let result
       try {
         const ast = zircon.parse(source)
-        console.log(JSON.stringify(ast))
-        result = zircon.run(ast, { out() { } })
+        console.trace(ast)
+        result = ast[0] == 'run' ? zircon.run(ast, { out() { } }) : ast
       } catch (e) {
         result = e
       }
-      const correct = result === expect
+      const correct = String(result) === String(expect)
       const li = document.createElement("li")
       li.innerHTML = `<code>${source}</code><code>${expect}</code><code>${result}</code><label>${correct ? "✅" : "🆖"}</label>`
       results.appendChild(li)

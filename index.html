@@ -72,6 +72,7 @@ input {
 article {
   padding: 0.5em;
   border: 1px solid silver;
+  white-space: pre;
 }
 </style>
 
@@ -89,13 +90,12 @@ document.querySelector('button').addEventListener('click', e => {
     output.value = ast
     return
   }
-  ast[1].out = value => output.value += value
-  debug.textContent = JSON.stringify(ast)
+  debug.textContent = zircon.toJSON(ast)
   console.trace(ast)
   output.value = ''
   try {
-    const result = zircon.run(ast)
-    resultValue.value = JSON.stringify(result)
+    const result = zircon.run(ast, { out: value => output.value += value })
+    resultValue.value =  zircon.toJSON(result, null)
   } catch (e) {
     output.value += e
     resultValue.value = '(実行時エラー)'
