@@ -1,6 +1,6 @@
 /*
 [BNF] {} 0回以上, [] 0または1回, | または, ^ それ以外
-program: [space] expression {space expression} [space]
+program: [space] [expression] {space expression} [space]
 expression: prefix [space] factor
   | factor {[space] operator [space] factor}
 factor: number
@@ -18,13 +18,24 @@ argument: symbol {(space|',') [space] symbol}
 block: '{' program '}'
 tuple: '(' [space] [expression] {(space|',') [space] expression} [space] ')'
 symbol: 'true' | 'false' | 'null' | (^number|mark|space^ [symbol|number])
-number: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [number]
+number: digit ['.' digit]
+digit: ('0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9') [digit]
 mark: ('!' | '"' | '#' | '$' | '%' | '&' | '\'' | '(' | ')' | '-' | '=' | '^' | '~' | '\\' | '|' | '@' | '`' | '[' | '{' | ';' | '+' | ':' | '*' | ']' | '}' | ',' | '<' | '.' | '>' | '/' | '?') [mark]
 space: (blank|newline) [space]
 blank: (' ' | '　' | '\t') [blank]
 newline: ('\n' | ';') [newline]
 */
 const toJSON = (a, space = '  ') => JSON.stringify(a, null, space)
+const isNumber = (value) => typeof value == 'number' && isFinite(value)
+const type = a => {
+  if (a == null) return 'Null'
+  if (a === true || a === false) return 'Boolean'
+  if (a[0] == 'tuple') return 'Tuple'
+  if (a[0] == 'do') return 'Do'
+  if (typeof a == 'string') return 'String'
+  if (isNumber(a)) return String(a).includes('.') ? 'Real' : 'Integer'
+  return 'Any'
+}
 export default {
   toJSON,
   parse(source) {
@@ -104,8 +115,7 @@ export default {
     }
 
     function program(env) {
-      skip()
-      const result = ['run', env, expression(env)]
+      const result = ['run', env]
       while (true) {
         skip()
         if ("\0}".includes(peek())) break
@@ -275,10 +285,19 @@ export default {
     }
     function number(ifEmpty = '数値が見つかりません') {
       const n = skip(DIGIT, ifEmpty)
+      if (peek() == '.' && DIGIT.includes(peek(1))) {
+        next()
+        const m = skip(DIGIT, ifEmpty)
+        return log(Number(n + '.' + m), 'number')
+      }
       return log(n.length ? Number(n) : n, 'number')
     }
   },
   run(ast, env = {}) {
+    env.$ = {
+      type,
+      echo: a => env.out(a)
+    }
     ast[1].$ = env
     const result = this.eval(ast, ast[1])
     return result && result[0] == 'tuple' ? result.slice(1) : result
@@ -347,7 +366,7 @@ export default {
         case '..':
           return log(['range', r(ast[1]), r(ast[2])])
         case 'run': {
-          let result
+          let result = null
           for (var i = 2; i < ast.length; i++) {
             result = r(ast[i])
             if (i + 1 < ast.length && ast[i + 1][0] == 'do') {
@@ -383,7 +402,9 @@ export default {
           return log(value)
         }
         case 'call': {
-          const [_, argument, block] = r(ast[1])
+          const f = r(ast[1])
+          if (f instanceof Function) return log(f(...ast[2])) // 組み込み関数
+          const [_, argument, block] = f
           const parameter = ast[2]
           const local = block[1]
           const max = Math.max(argument.length, parameter.length)
@@ -415,7 +436,7 @@ export default {
         case '|?.': {
           const instance = r(ast[1])
           if (instance == null && ast[0].endsWith('?.')) return log(null)
-          if (ast[2][0] == 'get') return log(r(['call', ast[2], instance]))
+          if (ast[2][0] == 'get') return log(r(['call', ast[2], [instance]]))
           const message = r(ast[2])
           if (instance && instance[0] == 'tuple' && isNumber(message)) return log(then(instance.slice(1), a => a[(message < 0 ? a.length + message : message)] ?? null))
           /*fallthrough*/
@@ -432,9 +453,6 @@ export default {
     }
     function then(value, action) {
       return action(value)
-    }
-    function isNumber(value) {
-      return typeof value == 'number' && isFinite(value)
     }
   }
 }

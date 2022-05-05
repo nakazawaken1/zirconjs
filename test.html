@@ -21,7 +21,7 @@
   "-1 - 2": -3,
   "-3--4": 1,
   "1 - - 2": 3,
-  "": "シンボルが見つかりません(1文字目 \\\\\\\\\\)",
+  "": null,
   "a": "aは定義されていません",
   "+": "シンボルが見つかりません(2文字目 \\+\\\\\\)",
   "++3": 3,
@@ -94,7 +94,18 @@
   "null.method": "methodは定義されていません",
   "null?.method": null,
   "a: do { 1 } b: a b()": 1,
-  "fib: do n { if n > 2 { fib(n - 1) + fib(n - 2) } else { 1 } } (fib(1) fib(2) fib(3) fib(4) fib(5) fib(6))": [1, 1, 2, 3, 5, 8]
+  "fib: do n { if n > 2 { fib(n - 1) + fib(n - 2) } else { 1 } } (fib(1) fib(2) fib(3) fib(4) fib(5) fib(6))": [1, 1, 2, 3, 5, 8],
+  "1.2": 1.2,
+  "0.1": 0.1,
+  "-1.23": -1.23,
+  "1.2.type": "Real",
+  "1.type": "Integer",
+  "'a'.type": "String",
+  "true.type": "Boolean",
+  "false.type": "Boolean",
+  "null.type": "Null",
+  "(1, 2).type": "Tuple",
+  "do{}.type": "Do"
 }
 </textarea>
   <button type="button">テスト<br>実行</button>
