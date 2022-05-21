@@ -13,11 +13,11 @@ factor: number
   | symbol [space] ':' [space] call
   | do
   | if
-do: 'do' [space] [argument] [space] block
+do: 'do' ['@' symbol] [space] [argument] [space] block
 if: 'if' [space] call [space] block {[space] 'ef' [space] call [space] block} [[space] 'else' [space] block]
 prefix: '+' | '-' | 'not'
 operator: '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '=' | '<>' | '>=' | '>' | 'and' | 'or' | '^' | '??' | '&' | '??&' | '.' | '?.' | '..' | '|.' | '|?.'
-argument: symbol {(space|',') [space] symbol}
+argument: symbol ['@' symbol] {(space|',') [space] symbol ['@' symbol]}
 block: '{' program '}'
 tuple: '(' [space] [call] {(space|',') [space] call} [space] ')'
 symbol: 'true' | 'false' | 'null' | (^number|mark|space^ [symbol|number])
@@ -266,18 +266,27 @@ export default {
     function do_(env) {
       if (!eat('do')) return null
       skip()
+      const type = []
+      if(eat('@')) {
+        type.push(symbol())
+        skip()
+      }
       const a = peek() != '{' ? argument(env) : []
       skip()
       const b = block(env)
-      return log(['do', a, b], 'do')
+      return log(['do', a, b].concat(type), 'do')
     }
     function argument(env) {
-      const symbols = [symbol()]
+      const symbols = []
       while (true) {
-        skip(SPACE_COMMA)
         const s = symbol(null)
         if (!s.length) break
-        symbols.push(s)
+        if (eat('@')) {
+          symbols.push([s, symbol()])
+        } else {
+          symbols.push(s)
+        }
+        skip(SPACE_COMMA)
       }
       return log(symbols, 'argument')
     }
@@ -449,7 +458,7 @@ export default {
             const max = Math.max(argument.length, parameter.length)
             for (let i = 0; i < max; i++) {
               console.log(argument[i] + ' <= ' + r(parameter[i]))
-              local[argument[i]] = r(parameter[i])
+              local[argument[i] instanceof Array ? argument[i][0] : argument[i]] = r(parameter[i])
             }
             return evaluate(block, { ...local })
           }
